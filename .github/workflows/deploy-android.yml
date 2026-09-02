@@ -14,7 +14,7 @@ on:
         type: string
         default: '17'
       build-type:
-        description: 'Build type (release, debug)'
+        description: 'Build type to validate before upload (only release is supported for Google Play deployments)'
         required: false
         type: string
         default: 'release'
@@ -62,12 +62,15 @@ jobs:
       - name: Grant Execute Permission to Gradle
         run: chmod +x ./gradlew
 
+      - name: Validate Build Type
+        run: |
+          if [ "${{ inputs.build-type }}" != "release" ]; then
+            echo "Only release build-type is supported for Google Play deployments." >&2
+            exit 1
+          fi
+
       - name: Build Android App Bundle (AAB)
         run: ./gradlew bundleRelease
-
-      - name: Decode and Prepare Keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/release.jks
 
       - name: Sign App Bundle
         uses: r0adkll/sign-android-release@v1
