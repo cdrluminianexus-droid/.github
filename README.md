@@ -44,7 +44,7 @@ jobs:
 
 ## 2. Implantar Aplicativo Android (`deploy-android.yml`)
 
-Compila, assina digitalmente o aplicativo Android do **Player One** e publica o pacote (`.aab`) diretamente no Google Play Console para testes ou produção.
+Compila, assina digitalmente o aplicativo Android do **Player One** e publica o pacote (`.aab`) diretamente no Google Play Console para testes ou produção. Como o Google Play aceita apenas artefatos de distribuição, este workflow suporta apenas builds do tipo `release`.
 
 ### Segredos do Repositório Necessários:
 *   `KEYSTORE_BASE64`: O arquivo `.jks` codificado em base64.
@@ -85,6 +85,9 @@ jobs:
 
 Compila o aplicativo móvel ou para Apple TV do **Player One**, realiza a assinatura de código nativa do macOS e envia a versão automaticamente para testes no **TestFlight / App Store Connect**.
 
+### Parâmetros Importantes:
+*   `team-id`: Apple Developer Team ID usado para exportar o arquivo `.ipa`.
+
 ### Segredos do Repositório Necessários:
 *   `P12_KEY_BASE64`: Certificado de distribuição iOS `.p12` codificado em base64.
 *   `P12_PASSWORD`: Senha do certificado `.p12`.
@@ -110,6 +113,7 @@ jobs:
       environment: 'production'
       xcode-version: '15.2'
       scheme: 'PlayerOne'
+      team-id: 'YOUR_TEAM_ID'
       workspace-path: 'ios/PlayerOne.xcworkspace'
     secrets:
       P12_KEY_BASE64: ${{ secrets.P12_KEY_BASE64 }}

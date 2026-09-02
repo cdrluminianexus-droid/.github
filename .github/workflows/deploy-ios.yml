@@ -17,6 +17,10 @@ on:
         description: 'Xcode Scheme to build'
         required: true
         type: string
+      team-id:
+        description: 'Apple Developer Team ID used to export the archive'
+        required: true
+        type: string
       workspace-path:
         description: 'Path to xcworkspace file'
         required: false
@@ -51,7 +55,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app || true
+        if: ${{ inputs.xcode-version != 'latest-stable' }}
+        run: sudo xcode-select -s /Applications/Xcode_${{ inputs.xcode-version }}.app
 
       - name: Install Apple Certificates and Provisioning Profiles
         run: |
@@ -78,7 +83,7 @@ jobs:
 
       - name: Build Archive
         run: |
-          xcodebuild -workspace "${{ inputs.workspace-path }}" \
+          xcodebuild -workspace ${{ inputs.workspace-path }} \
                      -scheme "${{ inputs.scheme }}" \
                      -sdk iphoneos \
                      -configuration Release \
@@ -96,7 +101,7 @@ jobs:
               <key>method</key>
               <string>app-store</string>
               <key>teamID</key>
-              <string>YOUR_TEAM_ID</string>
+              <string>${{ inputs.team-id }}</string>
               <key>signingStyle</key>
               <string>manual</string>
           </dict>

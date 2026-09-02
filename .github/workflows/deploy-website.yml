@@ -46,6 +46,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -54,7 +56,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node-version }}
-          cache: 'npm'
 
       - name: Install Dependencies
         run: |
@@ -81,9 +82,9 @@ jobs:
         run: |
           npm install --global vercel
           if [ "${{ inputs.environment }}" = "production" ]; then
-            vercel deploy --prod --token=${{ secrets.DEPLOY_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
+            vercel deploy --prod --yes --token=${{ secrets.DEPLOY_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
           else
-            vercel deploy --token=${{ secrets.DEPLOY_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
+            vercel deploy --yes --token=${{ secrets.DEPLOY_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
           fi
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -92,9 +93,13 @@ jobs:
       # 3. Deploy to Netlify
       - name: Deploy to Netlify
         if: ${{ inputs.provider == 'netlify' }}
-        uses: netlify/actions/cli@master
-        with:
-          args: deploy --dir=${{ inputs.dist-directory }} --prod
+        run: |
+          npm install --global netlify-cli
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            netlify deploy --dir="${{ inputs.dist-directory }}" --prod
+          else
+            netlify deploy --dir="${{ inputs.dist-directory }}"
+          fi
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
