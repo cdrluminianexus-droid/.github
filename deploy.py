@@ -62,7 +62,7 @@ def mask_sensitive_data(cmd: List[str]) -> str:
             
     return " ".join(masked_parts)
 
-def run_command(cmd: List[str], shell: bool = False, env: Optional[Dict[str, str]] = None) -> subprocess.CompletedProcess:
+def run_command(cmd: List[str], shell: bool = False, env: Optional[Dict[str, str]] = None, cwd: Optional[str] = None) -> subprocess.CompletedProcess:
     """Executa um comando de sistema de forma segura e loga a saída."""
     masked_cmd_str = mask_sensitive_data(cmd) if isinstance(cmd, list) else cmd
     logger.info(f"Executando comando: {masked_cmd_str}")
@@ -79,7 +79,8 @@ def run_command(cmd: List[str], shell: bool = False, env: Optional[Dict[str, str
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            env=process_env
+            env=process_env,
+            cwd=cwd
         )
         if result.stdout:
             logger.debug(f"Saída do comando:\n{result.stdout}")
@@ -163,14 +164,13 @@ class WebsiteDeployer:
             shutil.copytree(dist_path, temp_dir, dirs_exist_ok=True)
             
             # Inicializar repositório Git temporário
-            cwd = temp_dir
-            run_command(["git", "init"], env={"GIT_DIR": None})
-            run_command(["git", "config", "user.name", "Lumia Deployerer"], env={"GIT_DIR": None})
-            run_command(["git", "config", "user.email", "deployer@lumianexus.com"], env={"GIT_DIR": None})
+            run_command(["git", "init"], env={"GIT_DIR": None}, cwd=temp_dir)
+            run_command(["git", "config", "user.name", "Lumia Deployerer"], env={"GIT_DIR": None}, cwd=temp_dir)
+            run_command(["git", "config", "user.email", "deployer@lumianexus.com"], env={"GIT_DIR": None}, cwd=temp_dir)
             
             # Adicionar todos os arquivos e fazer commit
-            run_command(["git", "add", "."], env={"GIT_DIR": None})
-            run_command(["git", "commit", "-m", "Deploy automatizado via Lumia Python Tool"], env={"GIT_DIR": None})
+            run_command(["git", "add", "."], env={"GIT_DIR": None}, cwd=temp_dir)
+            run_command(["git", "commit", "-m", "Deploy automatizado via Lumia Python Tool"], env={"GIT_DIR": None}, cwd=temp_dir)
             
             # Construir URL do repositório de destino com Token de autenticação se disponível
             repo_url = os.environ.get("GITHUB_REPOSITORY", "cdrluminianexus-droid/player-one-site")
@@ -180,9 +180,9 @@ class WebsiteDeployer:
                 remote_url = f"https://github.com/{repo_url}.git"
                 
             # Adicionar remoto e forçar push para gh-pages
-            run_command(["git", "remote", "add", "origin", remote_url], env={"GIT_DIR": None})
+            run_command(["git", "remote", "add", "origin", remote_url], env={"GIT_DIR": None}, cwd=temp_dir)
             logger.info("Enviando alterações para o branch 'gh-pages'...")
-            run_command(["git", "push", "--force", "origin", "HEAD:gh-pages"], env={"GIT_DIR": None})
+            run_command(["git", "push", "--force", "origin", "HEAD:gh-pages"], env={"GIT_DIR": None}, cwd=temp_dir)
             
         logger.info("Deploy para o GitHub Pages concluído com sucesso!")
 
