@@ -126,6 +126,56 @@ jobs:
 
 ---
 
+## 🐍 Central de Automação de CI/CD em Python (`deploy.py`)
+
+Para maior flexibilidade, controle e capacidade de execução local ou em outros servidores de automação, todo o fluxo de implantação foi implementado em **Python puro**.
+
+O script `deploy.py` está disponível na raiz deste repositório e suporta três subcomandos principais:
+
+1.  **`website`**: Compila e publica websites (GitHub Pages, Vercel ou Netlify).
+2.  **`android`**: Compila via Gradle, decodifica a keystore, assina o pacote AAB e publica na Google Play Store.
+3.  **`ios`**: Configura certificados e chaveiros no macOS, executa o build, exporta o arquivo IPA e o envia ao TestFlight.
+
+### Como Executar Localmente ou em seu Workflow:
+
+Você pode executar o script passando os argumentos diretamente pela linha de comando ou definir variáveis de ambiente que o script detectará automaticamente.
+
+#### Exemplo 1: Implantar Website no GitHub Pages
+```bash
+python3 deploy.py website \
+  --provider github-pages \
+  --dist-directory dist \
+  --token "SEU_GITHUB_TOKEN"
+```
+
+#### Exemplo 2: Compilar e Assinar Android App Bundle
+```bash
+python3 deploy.py android \
+  --package-name "com.lumianexus.playerone" \
+  --build-type release \
+  --track internal \
+  --keystore-base64 "CONTEUDO_BASE64_DO_JKS" \
+  --keystore-password "SENHA_KEYSTORE" \
+  --key-alias "ALIAS_DA_CHAVE" \
+  --key-password "SENHA_DA_CHAVE" \
+  --service-account-json "CONTEUDO_JSON_DA_CONTA_DE_SERVICO"
+```
+
+#### Exemplo 3: Compilar, Assinar e Enviar iOS ao TestFlight
+```bash
+python3 deploy.py ios \
+  --scheme "PlayerOne" \
+  --workspace-path "ios/PlayerOne.xcworkspace" \
+  --p12-base64 "CONTEUDO_BASE64_P12" \
+  --p12-password "SENHA_P12" \
+  --profile-base64 "CONTEUDO_BASE64_MOBILEPROVISION" \
+  --api-key "CHAVE_PRIVADA_P8_EM_TEXTO" \
+  --key-id "ID_DA_CHAVE" \
+  --issuer-id "ID_DO_EMISSOR"
+```
+
+---
+
 ## 🔒 Segurança de Credenciais
 
 Nunca exponha chaves ou senhas em texto puro no código-fonte. Utilize sempre o painel de **Secrets and Variables** de cada repositório no GitHub para manter as chaves de assinatura do Google Play e da Apple totalmente protegidas.
