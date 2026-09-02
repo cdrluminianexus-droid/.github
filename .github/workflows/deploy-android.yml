@@ -1,0 +1,91 @@
+name: Reusable Android Deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment (production, staging)'
+        required: false
+        type: string
+        default: 'production'
+      java-version:
+        description: 'Java version to use (e.g. 17, 21)'
+        required: false
+        type: string
+        default: '17'
+      build-type:
+        description: 'Build type (release, debug)'
+        required: false
+        type: string
+        default: 'release'
+      track:
+        description: 'Google Play Track (internal, alpha, beta, production)'
+        required: false
+        type: string
+        default: 'internal'
+      package-name:
+        description: 'Android app package name'
+        required: true
+        type: string
+    secrets:
+      KEYSTORE_BASE64:
+        description: 'Base64 encoded Keystore (.jks) file'
+        required: true
+      KEYSTORE_PASSWORD:
+        description: 'Keystore password'
+        required: true
+      KEY_ALIAS:
+        description: 'Key alias'
+        required: true
+      KEY_PASSWORD:
+        description: 'Key password'
+        required: true
+      PLAY_SERVICE_ACCOUNT_JSON:
+        description: 'Google Play Service Account JSON credentials'
+        required: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: ${{ inputs.java-version }}
+          cache: 'gradle'
+
+      - name: Grant Execute Permission to Gradle
+        run: chmod +x ./gradlew
+
+      - name: Build Android App Bundle (AAB)
+        run: ./gradlew bundleRelease
+
+      - name: Decode and Prepare Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/release.jks
+
+      - name: Sign App Bundle
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: app/build/outputs/bundle/release
+          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          singleFile: true
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
+
+      - name: Publish to Google Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ inputs.package-name }}
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: ${{ inputs.track }}
+          whatsNewDirectory: distribution/whatsnew

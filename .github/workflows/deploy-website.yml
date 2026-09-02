@@ -1,0 +1,100 @@
+name: Reusable Website Deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment (production, staging)'
+        required: false
+        type: string
+        default: 'production'
+      node-version:
+        description: 'Node.js version to use'
+        required: false
+        type: string
+        default: '20'
+      build-command:
+        description: 'Command to build the project'
+        required: false
+        type: string
+        default: 'npm run build'
+      dist-directory:
+        description: 'The output directory to deploy'
+        required: false
+        type: string
+        default: 'dist'
+      provider:
+        description: 'The deployment provider (github-pages, vercel, netlify)'
+        required: true
+        type: string
+        default: 'github-pages'
+    secrets:
+      DEPLOY_TOKEN:
+        description: 'Authentication token for the provider'
+        required: false
+      VERCEL_ORG_ID:
+        description: 'Vercel Organization ID'
+        required: false
+      VERCEL_PROJECT_ID:
+        description: 'Vercel Project ID'
+        required: false
+      NETLIFY_SITE_ID:
+        description: 'Netlify Site ID'
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build Website
+        run: ${{ inputs.build-command }}
+
+      # 1. Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        if: ${{ inputs.provider == 'github-pages' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ${{ inputs.dist-directory }}
+
+      # 2. Deploy to Vercel
+      - name: Deploy to Vercel
+        if: ${{ inputs.provider == 'vercel' }}
+        run: |
+          npm install --global vercel
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            vercel deploy --prod --token=${{ secrets.DEPLOY_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
+          else
+            vercel deploy --token=${{ secrets.DEPLOY_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
+          fi
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # 3. Deploy to Netlify
+      - name: Deploy to Netlify
+        if: ${{ inputs.provider == 'netlify' }}
+        uses: netlify/actions/cli@master
+        with:
+          args: deploy --dir=${{ inputs.dist-directory }} --prod
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
