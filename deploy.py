@@ -24,6 +24,7 @@ import json
 import logging
 import plistlib
 import glob
+import secrets
 import subprocess
 from typing import List, Optional, Dict, Any
 
@@ -35,10 +36,36 @@ logging.basicConfig(
 )
 logger = logging.getLogger("LumiaDeploy")
 
+def mask_sensitive_data(cmd: List[str]) -> str:
+    """Oculta informações sensíveis (como senhas e tokens) de um comando antes de logar."""
+    masked_parts = []
+    skip_next = False
+    
+    sensitive_flags = {
+        "-storepass", "-keypass", "-P", "-p", "--apiKey", "--apiIssuer", "--token",
+        "--ks-pass", "--key-pass"
+    }
+    
+    for part in cmd:
+        if skip_next:
+            masked_parts.append("********")
+            skip_next = False
+            continue
+            
+        if part in sensitive_flags:
+            masked_parts.append(part)
+            skip_next = True
+        elif any(sec in part.lower() for sec in ["pass:", "token=", "key="]):
+            masked_parts.append("********")
+        else:
+            masked_parts.append(part)
+            
+    return " ".join(masked_parts)
+
 def run_command(cmd: List[str], shell: bool = False, env: Optional[Dict[str, str]] = None) -> subprocess.CompletedProcess:
     """Executa um comando de sistema de forma segura e loga a saída."""
-    cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
-    logger.info(f"Executando comando: {cmd_str}")
+    masked_cmd_str = mask_sensitive_data(cmd) if isinstance(cmd, list) else cmd
+    logger.info(f"Executando comando: {masked_cmd_str}")
     
     try:
         process_env = os.environ.copy()
@@ -58,7 +85,7 @@ def run_command(cmd: List[str], shell: bool = False, env: Optional[Dict[str, str
             logger.debug(f"Saída do comando:\n{result.stdout}")
         return result
     except subprocess.CalledProcessError as e:
-        logger.error(f"Erro ao executar o comando: {cmd_str}")
+        logger.error(f"Erro ao executar o comando: {masked_cmd_str}")
         logger.error(f"Código de saída: {e.returncode}")
         logger.error(f"Erro detalhado:\n{e.stderr}\n{e.stdout}")
         sys.exit(e.returncode)
@@ -413,9 +440,9 @@ class iOSDeployer:
         decode_base64_to_file(p12_b64, p12_path)
         decode_base64_to_file(profile_b64, profile_path)
         
-        # Gerar chaveiro temporário para o runner de automação
+        # Gerar chaveiro temporário para o runner de automação com senha aleatória para segurança
         keychain_path = os.path.join(runner_temp, "app-signing.keychain-db")
-        keychain_password = "temporary_password_123"
+        keychain_password = secrets.token_hex(16)
         
         logger.info("Criando chaveiro temporário...")
         run_command(["security", "create-keychain", "-p", keychain_password, keychain_path])
